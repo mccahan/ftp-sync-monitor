@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+  <div class="container mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-6">Admin Dashboard</h1>
+
+    <div x-data="{
+      files: [],
+      fetchFiles() {
+        fetch('/files')
+          .then(response => response.json())
+            .then(data => {
+            this.files = Object.entries(data)
+              .map(([path, info]) => ({ path, ...info }))
+              .sort((a, b) => a.status === 'Downloading' ? -1 : b.status === 'Downloading' ? 1 : 0);
+            });
+      }
+    }" x-init="fetchFiles(); setInterval(fetchFiles, 10000)">
+
+      <table class="min-w-full bg-white shadow-md rounded">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="py-2 px-4 border">File Path</th>
+            <th class="py-2 px-4 border">Status</th>
+            <th class="py-2 px-4 border">Size</th>
+            <th class="py-2 px-4 border">Speed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="file in files" :key="file.path">
+            <tr class="hover:bg-gray-50">
+                <td class="py-2 px-4 border">
+                  <p class="text-xs text-red" x-text="file.directory"></p>
+                  <p x-text="file.path"></p>
+                </td>
+                <td class="py-2 px-4 border">
+                <p x-text="file.status"></p>
+                <template x-if="file.progress">
+                  <p x-text="file.progress + '%'"></p>
+                </template>
+                </td>
+              <td class="py-2 px-4 border" x-text="file.size ? file.size + ' bytes' : '-' "></td>
+              <td class="py-2 px-4 border" x-text="file.speed ? file.speed : '-' "></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

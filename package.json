@@ -1,0 +1,20 @@
+{
+  "name": "ftp-sync-monitor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Ryan McCahan <ryan@mccahan.net>",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js --ignore fileStatus.json"
+  },
+  "dependencies": {
+    "basic-ftp": "^5.0.5",
+    "express": "^4.21.2",
+    "node-schedule": "^2.1.1",
+    "ssh2-sftp-client": "^11.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
