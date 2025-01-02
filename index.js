@@ -138,7 +138,7 @@ async function syncFiles() {
             : client.get(remotePath, fs.createWriteStream(localPath));
 
         fileStatus[filename].status = `Downloading`;
-        console.log("Downloading file: ", filename);
+        console.log("Downloading file: ", remotePath);
         if (config.protocol === 'ftp') {
             client.trackProgress(info => {
                 if (info.name === remotePath) {
@@ -166,22 +166,26 @@ async function syncFiles() {
     }
 
     async function traverseDir(remoteDir, localDir) {
-        const list = await client.list(remoteDir);
+        const pwd = await client.pwd();
+        await client.cd(remoteDir);
+        const list = await client.list();
         logEvent({ type: 'Directory Listing', status: 'Success', directory: remoteDir });
         for (const file of list) {
-            const remotePath = path.join(remoteDir, file.name);
             const localPath = path.join(localDir, file.name);
 
             if (file.type === 'd' || file.type === 2) {
-                if (!fs.existsSync(localPath)) fs.mkdirSync(localPath);
-                await traverseDir(remotePath, localPath);
+              if (!fs.existsSync(localPath)) fs.mkdirSync(localPath);
+              await traverseDir(file.name, localPath);
             } else {
-                await processFile(remotePath, localPath, file.size);
+              console.log("Processing", file.name)
+              await processFile(file.name, localPath, file.size);
             }
         }
+        await client.cd(pwd);
     }
 
-    await traverseDir(config.remoteDir, config.localDir);
+    await client.cd(config.remoteDir);
+    await traverseDir('.', config.localDir);
     if (config.protocol === 'ftp') client.close(); else if (config.protocol === 'ftp') client.close(); else await client.end();
     console.log('Sync job completed at:', new Date().toISOString());
     logEvent({ type: 'Sync Job', status: 'Completed' });
@@ -215,7 +219,8 @@ app.listen(PORT, async () => {
     console.log('Running initial sync...');
     const client = config.protocol === 'ftp' ? await connectFTP() : await connectSFTP();
     if (client) {
-        const list = await client.list(config.remoteDir);
+        await client.cd(config.remoteDir);
+        const list = await client.list();
         list.forEach(file => {
             const remotePath = path.join(config.remoteDir, file.name);
             if (file.type === 'd' || file.type === 2) return;
