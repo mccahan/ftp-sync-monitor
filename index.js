@@ -133,8 +133,8 @@ async function syncFiles() {
         let downloadedBytes = 0;
 
         const stream = config.protocol === 'ftp'
-            ? client.downloadTo(localPath, remotePath)
-            : client.get(remotePath, fs.createWriteStream(localPath));
+            ? client.downloadTo(localPath + '.tmp', remotePath)
+            : client.get(remotePath, fs.createWriteStream(localPath + '.tmp'));
 
         fileStatus[filename].status = `Downloading`;
         console.log("Downloading file: ", remotePath);
@@ -159,6 +159,7 @@ async function syncFiles() {
         await stream;
         const duration = (Date.now() - start) / 1000;
         const speed = (size / duration / 1024).toFixed(2);
+        fs.renameSync(localPath + '.tmp', localPath);
         fileStatus[filename] = { status: 'Completed', size, speed: `${speed} KB/s`, directory: filename.replace(path.basename(filename), '') };
         saveFileStatus();
         logEvent({ type: 'File Downloaded', status: 'Completed', file: remotePath, size, speed: `${speed} KB/s` });
