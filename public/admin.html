@@ -14,7 +14,7 @@
     <div x-data="{
       files: [],
       fetchFiles() {
-        fetch('/files')
+        fetch('files')
           .then(response => response.json())
             .then(data => {
             this.files = Object.entries(data)

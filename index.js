@@ -6,9 +6,6 @@ const sshClient = require('ssh2-sftp-client');
 const app = express();
 const PORT = 3000;
 
-// Serve static files for admin UI
-app.use(express.static(path.join(__dirname, 'public')));
-
 const fileStatusPath = path.join(__dirname, 'fileStatus.json');
 
 // Load configuration from local file if available
@@ -17,6 +14,8 @@ const configPath = path.join(__dirname, 'config.json');
 if (fs.existsSync(configPath)) {
     localConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 }
+
+const PREFIX = process.env.PREFIX || localConfig.prefix || '';
 
 // Configuration
 const config = {
@@ -194,18 +193,18 @@ async function syncFiles() {
 }
 
 // Web UI
-app.use(express.static('public'));
+app.use(PREFIX, express.static(path.join(__dirname, 'public')));
 
-app.get('/files', (req, res) => {
+app.get(PREFIX + '/files', (req, res) => {
     res.json(fileStatus);
 });
 
-app.get('/events', (req, res) => {
+app.get(PREFIX + '/events', (req, res) => {
     res.json(recentEvents);
 });
 
 // Admin UI endpoint
-app.get('/', (req, res) => {
+app.get(PREFIX,  (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
