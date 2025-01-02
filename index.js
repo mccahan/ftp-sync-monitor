@@ -3,7 +3,6 @@ const path = require('path');
 const fs = require('fs');
 const ftp = require('basic-ftp');
 const sshClient = require('ssh2-sftp-client');
-const schedule = require('node-schedule');
 const app = express();
 const PORT = 3000;
 
@@ -28,7 +27,7 @@ const config = {
     password: process.env.PASSWORD || localConfig.password || 'password',
     remoteDir: process.env.REMOTE_DIR || localConfig.remoteDir || '/remote/dir',
     localDir: process.env.LOCAL_DIR || localConfig.localDir || path.join(__dirname, 'localSync'),
-    schedule: process.env.SCHEDULE || localConfig.schedule || '*/5 * * * *' // Every 5 minutes
+    schedule: process.env.FREQUENCY || localConfig.frequency || 300,
 };
 
 let fileStatus = {};
@@ -189,13 +188,9 @@ async function syncFiles() {
     if (config.protocol === 'ftp') client.close(); else if (config.protocol === 'ftp') client.close(); else await client.end();
     console.log('Sync job completed at:', new Date().toISOString());
     logEvent({ type: 'Sync Job', status: 'Completed' });
-}
 
-// Schedule sync
-schedule.scheduleJob(config.schedule, () => {
-    console.log('Scheduled job executed at:', new Date().toISOString());
-    syncFiles();
-});
+    setTimeout(syncFiles, config.schedule * 1000);
+}
 
 // Web UI
 app.use(express.static('public'));
