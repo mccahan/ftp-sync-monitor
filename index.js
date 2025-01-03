@@ -125,10 +125,13 @@ async function syncFiles() {
             }
         }
 
+        console.log("Downloading file: ", remotePath);
+
         // Check for existing file to resume
         if (fs.existsSync(localPath + '.tmp')) {
             const tmpFileStats = fs.statSync(localPath + '.tmp');
             startAt = tmpFileStats.size;
+            console.log("Resuming from byte:", startAt);
         }
         logEvent({ type: 'File Downloading', status: 'Started', file: remotePath, size });
       
@@ -144,8 +147,6 @@ async function syncFiles() {
             : client.get(remotePath, fs.createWriteStream(localPath + '.tmp'));
 
         fileStatus[filename].status = `Downloading`;
-        console.log("Downloading file: ", remotePath);
-        console.log();
 
         let progressBar = new cliProgress.SingleBar({
           format: '{filename} |{bar}| {percentage}% || {fileProgress} ({speed})',
@@ -156,6 +157,7 @@ async function syncFiles() {
           fileProgress: humanFileSize(startAt, totalBytes),
         });
 
+        let lastUpdate = Date.now();
         if (config.protocol === 'ftp') {
             client.trackProgress(info => {
                 if (info.name === remotePath) {
@@ -170,6 +172,11 @@ async function syncFiles() {
                       fileProgress: humanFileSize(downloadedBytes, totalBytes),
                     });
                     saveFileStatus();
+
+                    if (!process.stdout.isTTY && (Date.now() - lastUpdate > 10000)) {
+                      console.log(`Progress: ${filename.substring(0, 30)} - ${percent}% - ${humanFileSize(downloadedBytes, totalBytes)} - ${humanDownloadSpeed(speed)}`);
+                      lastUpdate = Date.now();
+                    }
                 }
             });
         } else {
