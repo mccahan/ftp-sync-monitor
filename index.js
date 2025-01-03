@@ -5,6 +5,7 @@ const ftp = require('basic-ftp');
 const sshClient = require('ssh2-sftp-client');
 const app = express();
 const PORT = 3000;
+const cliProgress = require('cli-progress');
 
 const fileStatusPath = path.join(__dirname, 'fileStatus.json');
 
@@ -112,7 +113,8 @@ async function syncFiles() {
           console.log("Already downloaded file: ", filename);
           return;
         }
-        
+        let startAt = 0;
+
         if (fs.existsSync(localPath)) {
             const localStats = fs.statSync(localPath);
             if (localStats.size === size) {
@@ -121,6 +123,12 @@ async function syncFiles() {
                 saveFileStatus();
                 return;
             }
+        }
+
+        // Check for existing file to resume
+        if (fs.existsSync(localPath + '.tmp')) {
+            const tmpFileStats = fs.statSync(localPath + '.tmp');
+            startAt = tmpFileStats.size;
         }
         logEvent({ type: 'File Downloading', status: 'Started', file: remotePath, size });
       
@@ -132,17 +140,35 @@ async function syncFiles() {
         let downloadedBytes = 0;
 
         const stream = config.protocol === 'ftp'
-            ? client.downloadTo(localPath + '.tmp', remotePath)
+            ? client.downloadTo(localPath + '.tmp', remotePath, startAt)
             : client.get(remotePath, fs.createWriteStream(localPath + '.tmp'));
 
         fileStatus[filename].status = `Downloading`;
         console.log("Downloading file: ", remotePath);
+        console.log();
+
+        let progressBar = new cliProgress.SingleBar({
+          format: '{filename} |{bar}| {percentage}% || {fileProgress} ({speed})',
+        });
+        progressBar.start(Math.ceil(totalBytes/1024/1024), startAt, {
+          filename: filename.substring(0, 40) + (filename.length > 40 ? '...' : ''),
+          speed: "N/A",
+          fileProgress: humanFileSize(startAt, totalBytes),
+        });
+
         if (config.protocol === 'ftp') {
             client.trackProgress(info => {
                 if (info.name === remotePath) {
-                    downloadedBytes = info.bytes;
+                    downloadedBytes = info.bytes + startAt;
                     const percent = ((downloadedBytes / totalBytes) * 100).toFixed(2);
                     fileStatus[filename].progress = percent;
+                    const elapsed = ((Date.now() - start) / 1000).toFixed(2);
+                    const speed = ((downloadedBytes / 1024) / elapsed).toFixed(2);
+                    fileStatus[filename].speed = `${speed} KB/s`;
+                    progressBar.update(Math.ceil(downloadedBytes/1024/1024), {
+                      speed: humanDownloadSpeed(speed),
+                      fileProgress: humanFileSize(downloadedBytes, totalBytes),
+                    });
                     saveFileStatus();
                 }
             });
@@ -226,3 +252,47 @@ app.listen(PORT, async () => {
     }
     await syncFiles();
 });
+
+// Thanks to mpen from https://stackoverflow.com/a/14919494
+function humanFileSize(progressBytes, bytes) {
+  const thresh = 1024;
+  const dp = 2;
+
+  if (Math.abs(bytes) < thresh) {
+    return `${progressBytes}/${bytes} B`;
+  }
+
+  const units = ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  let u = -1;
+  const r = 10**dp;
+
+  do {
+    bytes /= thresh;
+    progressBytes /= thresh;
+    ++u;
+  } while (Math.round(Math.abs(bytes) * r) / r >= thresh && u < units.length - 1);
+
+
+  return progressBytes.toFixed(dp) + ' ' + units[u] + ' / ' + bytes.toFixed(dp) + ' ' + units[u];
+}
+
+function humanDownloadSpeed(bytes) {
+  const thresh = 1024;
+  const dp = 0;
+
+  if (Math.abs(bytes) < thresh) {
+    return `${bytes} Bps`;
+  }
+
+  const units = ['kB/s', 'MB/s', 'GB/s', 'TB/s'];
+  let u = -1;
+  const r = 10**dp;
+
+  do {
+    bytes /= thresh;
+    ++u;
+  } while (Math.round(Math.abs(bytes) * r) / r >= thresh && u < units.length - 1);
+
+
+  return bytes.toFixed(dp) + ' ' + units[u];
+}
