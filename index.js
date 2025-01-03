@@ -165,7 +165,7 @@ async function syncFiles() {
                     const percent = ((downloadedBytes / totalBytes) * 100).toFixed(2);
                     fileStatus[filename].progress = percent;
                     const elapsed = ((Date.now() - start) / 1000).toFixed(2);
-                    const speed = ((downloadedBytes / 1024) / elapsed).toFixed(2);
+                    const speed = ((info.bytes / 1024) / elapsed).toFixed(2);
                     fileStatus[filename].speed = `${speed} KB/s`;
                     progressBar.update(Math.ceil(downloadedBytes/1024/1024), {
                       speed: humanDownloadSpeed(speed),
