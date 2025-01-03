@@ -1,5 +1,6 @@
 {
   "name": "ftp-sync-monitor",
+  "type": "module",
   "version": "1.0.0",
   "main": "index.js",
   "author": "Ryan McCahan <ryan@mccahan.net>",

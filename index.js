@@ -1,12 +1,17 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const ftp = require('basic-ftp');
-const sshClient = require('ssh2-sftp-client');
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import ftp from 'basic-ftp';
+import sshClient from 'ssh2-sftp-client';
 const app = express();
 const PORT = 3000;
-const cliProgress = require('cli-progress');
+import cliProgress from 'cli-progress';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const fileStatusPath = path.join(__dirname, 'fileStatus.json');
 
 // Load configuration from local file if available
