@@ -7,6 +7,15 @@ WORKDIR /app
 COPY package.json yarn.lock ./
 RUN yarn install --production
 
+# Set the user to UID and GID from the environment, defaulting to 100:100
+ARG USER_UID=100
+ARG USER_GID=100
+RUN addgroup -g $USER_GID appgroup && \
+  adduser -u $USER_UID -G appgroup -s /bin/sh -D appuser
+
+# Switch to the new user
+USER appuser
+
 # Copy the application files
 COPY . .
 
