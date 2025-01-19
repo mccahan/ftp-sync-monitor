@@ -268,6 +268,9 @@ async function syncFiles() {
       status: "Success",
       directory: remoteDir,
     });
+    
+    // Loop through files and either store their info (if we're just scanning)
+    // or download them if we're in download mode
     for (const file of list) {
       const localPath = path.join(localDir, file.name);
 
@@ -275,9 +278,10 @@ async function syncFiles() {
         if (!fs.existsSync(localPath)) fs.mkdirSync(localPath);
         await traverseDir(file.name, localPath, download);
       } else {
-        if (typeof fileStatus[file.name] === "undefined") {
-          const filename = localPath.replace(config.localDir, "").replace(/^\//, "");
-          console.log("Found new file:", filename);
+        // Check to see whether we already know about this file
+        const filename = localPath.replace(config.localDir, "").replace(/^\//, "");
+        if (typeof fileStatus[filename] === "undefined") {
+          console.log("Found new file:", filename, localPath);
           fileStatus[filename] = {
             status: "Pending",
             size: file.size,
@@ -285,6 +289,8 @@ async function syncFiles() {
           };
           saveFileStatus();
         }
+
+        // Download it
         if (download) {
           console.log("Processing", file.name);
           await processFile(file.name, localPath, file.size);
