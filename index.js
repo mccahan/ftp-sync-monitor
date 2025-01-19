@@ -243,15 +243,16 @@ async function syncFiles() {
     const speed = (size / duration / 1024).toFixed(2);
     fs.renameSync(localPath + ".tmp", localPath);
     fileStatus[filename] = {
-      status: "Completed",
+      status: "Synced",
       size,
       speed: `${speed} KB/s`,
       directory: filename.replace(path.basename(filename), ""),
+      finishedAt: Math.ceil(new Date().valueOf() / 1000),
     };
     saveFileStatus();
     logEvent({
       type: "File Downloaded",
-      status: "Completed",
+      status: "Synced",
       file: remotePath,
       size,
       speed: `${speed} KB/s`,
@@ -297,7 +298,13 @@ async function syncFiles() {
 app.use(PREFIX, express.static(path.join(__dirname, "public")));
 
 app.get(PREFIX + "/files", (req, res) => {
-  res.json(fileStatus);
+  const daysAgo = Math.floor(Date.now() / 1000) - 3 * 24 * 60 * 60;
+  const files = Object.fromEntries(
+    Object.entries(fileStatus).filter(
+      ([, value]) => !value.finishedAt || value.finishedAt >= daysAgo
+    )
+  );
+  res.json(files);
 });
 
 app.get(PREFIX + "/events", (req, res) => {
