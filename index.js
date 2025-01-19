@@ -259,7 +259,7 @@ async function syncFiles() {
     });
   }
 
-  async function traverseDir(remoteDir, localDir) {
+  async function traverseDir(remoteDir, localDir, download = false) {
     const pwd = await client.pwd();
     await client.cd(remoteDir);
     const list = await client.list();
@@ -275,15 +275,27 @@ async function syncFiles() {
         if (!fs.existsSync(localPath)) fs.mkdirSync(localPath);
         await traverseDir(file.name, localPath);
       } else {
-        console.log("Processing", file.name);
-        await processFile(file.name, localPath, file.size);
+        if (typeof fileStatus[file.name] === "undefined") {
+          const filename = localPath.replace(config.localDir, "").replace(/^\//, "");
+          console.log("Found new file:", filename);
+          fileStatus[filename] = {
+            status: "Pending",
+            size: file.size,
+            directory: filename.replace(path.basename(filename), ""),
+          };
+          saveFileStatus();
+        }
+        if (download) {
+          console.log("Processing", file.name);
+          await processFile(file.name, localPath, file.size);
+        }
       }
     }
     await client.cd(pwd);
   }
 
   await client.cd(config.remoteDir);
-  await traverseDir(".", config.localDir);
+  await traverseDir(".", config.localDir, true);
   if (config.protocol === "ftp") client.close();
   else if (config.protocol === "ftp") client.close();
   else await client.end();
@@ -341,7 +353,7 @@ app.listen(PORT, async () => {
     list.forEach((file) => {
       const remotePath = path.join(config.remoteDir, file.name);
       if (file.type === "d" || file.type === 2) return;
-      //fileStatus[remotePath.replace(config.remoteDir + path.sep, '')] = { status: 'Pending', size: file.size, directory: file.name.replace(config.remoteDir, '') };
+      fileStatus[remotePath.replace(config.remoteDir + path.sep, '')] = { status: 'Pending', size: file.size, directory: file.name.replace(config.remoteDir, '') };
     });
     logEvent({
       type: "Initial Directory Listing",
