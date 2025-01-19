@@ -33,4 +33,4 @@ jobs:
         with:
           push: true
           provenance: mode=max
-          tags: latest
+          tags: mccahan/ftp-sync-monitor:latest
