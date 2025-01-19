@@ -33,4 +33,4 @@ jobs:
         with:
           push: true
           provenance: mode=max
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: latest
