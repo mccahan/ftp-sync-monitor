@@ -13,6 +13,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const fileStatusPath = path.join(__dirname, "fileStatus.json");
 
+let isSyncing = false;
+
 // Load configuration from local file if available
 let localConfig = {};
 const configPath = path.join(__dirname, "config.json");
@@ -113,12 +115,14 @@ async function connectSFTP() {
 // File Synchronization
 async function syncFiles() {
   console.log("Sync job started at:", new Date().toISOString());
+  isSyncing = true;
   logEvent({ type: "Sync Job", status: "Started" });
   const client =
     config.protocol === "ftp" ? await connectFTP() : await connectSFTP();
   if (!client) {
     console.log("Sync job aborted due to connection failure.");
     logEvent({ type: "Sync Job", status: "Aborted - Connection Failure" });
+    isSyncing = false;
     return;
   }
 
@@ -283,6 +287,7 @@ async function syncFiles() {
   else if (config.protocol === "ftp") client.close();
   else await client.end();
   console.log("Sync job completed at:", new Date().toISOString());
+  isSyncing = false;
   logEvent({ type: "Sync Job", status: "Completed" });
 
   setTimeout(syncFiles, config.schedule * 1000);
@@ -304,9 +309,22 @@ app.get(PREFIX, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
+app.post(PREFIX + "/start-sync", async (_req, res) => {
+  if (!isSyncing) {
+    syncFiles();
+    res.json({ status: "Sync Started" });
+  } else {
+    res.json({ status: "Sync Already in Progress" });
+  }
+});
+
+app.get(PREFIX + "/sync-status", (_req, res) => {
+  res.json({ status: isSyncing ? 'running' : 'idle' });
+});
+
 // Start server
 app.listen(PORT, async () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}${PREFIX}`);
   console.log("Running initial sync...");
   const client =
     config.protocol === "ftp" ? await connectFTP() : await connectSFTP();
