@@ -3,21 +3,19 @@ FROM node:22-alpine
 # Set the working directory
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY package.json yarn.lock ./
+# Set permissions for the application directory
+RUN chown -R 1000:1000 /app
+
+# Copy package files and install dependencies as root
+COPY --chown=node:node package.json yarn.lock ./
 RUN yarn install --production
+RUN chmod 777 -R /app
 
-# Set the user to UID and GID from the environment, defaulting to 100:100
-ARG USER_UID=100
-ARG USER_GID=100
-RUN addgroup -g $USER_GID appgroup && \
-  adduser -u $USER_UID -G appgroup -s /bin/sh -D appuser
+# Switch to the non-root user
+USER 1000
 
-# Switch to the new user
-USER appuser
-
-# Copy the application files
-COPY . .
+# Copy the rest of the application files
+COPY --chown=node:node . .
 
 # Expose the application port
 EXPOSE 3000
