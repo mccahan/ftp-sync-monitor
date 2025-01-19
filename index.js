@@ -273,7 +273,7 @@ async function syncFiles() {
 
       if (file.type === "d" || file.type === 2) {
         if (!fs.existsSync(localPath)) fs.mkdirSync(localPath);
-        await traverseDir(file.name, localPath);
+        await traverseDir(file.name, localPath, download);
       } else {
         if (typeof fileStatus[file.name] === "undefined") {
           const filename = localPath.replace(config.localDir, "").replace(/^\//, "");
