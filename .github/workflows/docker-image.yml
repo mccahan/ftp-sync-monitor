@@ -32,5 +32,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
+          sbom: true
           provenance: mode=max
           tags: mccahan/ftp-sync-monitor:latest
