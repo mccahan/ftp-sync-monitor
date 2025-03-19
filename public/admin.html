@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" async defer></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
@@ -13,35 +12,14 @@
 
     <div>
       <p>Sync Status:
-        <span x-data="{ status: '' }" x-init="fetch('sync-status')
-          .then(response => response.json())
-          .then(data => { status = data.status; })
-          .catch(error => { console.error('Error fetching sync status:', error); }); setInterval(() => {
-          fetch('sync-status')
-            .then(response => response.json())
-            .then(data => { status = data.status; })
-            .catch(error => { console.error('Error fetching sync status:', error); status = 'error'; });
-          }, 5000)" x-text="status"></span>
+        <span id="sync-status">Loading...</span>
+        <button class="ml-4 px-4 py-2 bg-blue-500 text-white rounded" id="start-sync">
+          Start Sync
+        </button>
+      </p>
+    </div>
 
-          <button class="ml-4 px-4 py-2 bg-blue-500 text-white rounded" x-on:click="fetch('start-sync', { method: 'POST' })">
-            Start Sync
-          </button>
-        </p>
-      </div>
-
-    <div x-data="{
-      files: [],
-      fetchFiles() {
-        fetch('files')
-          .then(response => response.json())
-            .then(data => {
-            this.files = Object.entries(data)
-              .map(([path, info]) => ({ path, ...info }))
-              .sort((a, b) => a.status === 'Downloading' ? -1 : b.status === 'Downloading' ? 1 : 0);
-            });
-      }
-    }" x-init="fetchFiles(); setInterval(fetchFiles, 10000)">
-
+    <div>
       <table class="min-w-full bg-white shadow-md rounded">
         <thead>
           <tr class="bg-gray-200">
@@ -51,26 +29,77 @@
             <th class="py-2 px-4 border">Speed</th>
           </tr>
         </thead>
-        <tbody>
-          <template x-for="file in files" :key="file.path">
-            <tr class="hover:bg-gray-50">
-                <td class="py-2 px-4 border">
-                  <p class="text-xs text-red" x-text="file.directory"></p>
-                  <p x-text="file.path"></p>
-                </td>
-                <td class="py-2 px-4 border">
-                <p x-text="file.status"></p>
-                <template x-if="file.progress">
-                  <p x-text="file.progress + '%'"></p>
-                </template>
-                </td>
-              <td class="py-2 px-4 border" x-text="file.size ? file.size + ' bytes' : '-' "></td>
-              <td class="py-2 px-4 border" x-text="file.speed ? file.speed : '-' "></td>
-            </tr>
-          </template>
+        <tbody id="files-table-body">
+          <!-- Rows will be dynamically inserted here -->
         </tbody>
       </table>
     </div>
   </div>
+
+  <script>
+    // Function to fetch and update sync status
+    function updateSyncStatus() {
+      fetch('sync-status')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('sync-status').textContent = data.status;
+        })
+        .catch(error => {
+          console.error('Error fetching sync status:', error);
+          document.getElementById('sync-status').textContent = 'Error';
+        });
+    }
+
+    // Function to fetch and update files list
+    function updateFilesList() {
+      fetch('files')
+        .then(response => response.json())
+        .then(data => {
+          const tableBody = document.getElementById('files-table-body');
+          tableBody.innerHTML = ''; // Clear existing rows
+          Object.entries(data).sort((a, b) => {
+            if (a[1].status === 'Downloading' && b[1].status !== 'Downloading') {
+              return -1;
+            } else if (a[1].status !== 'Downloading' && b[1].status === 'Downloading') {
+              return 1;
+            } else {
+              return 0;
+            }
+          }).forEach(([path, info]) => {
+            const row = document.createElement('tr');
+            row.classList.add('hover:bg-gray-50');
+            row.innerHTML = `
+              <td class="py-2 px-4 border">
+                <p class="text-xs text-red">${info.directory || ''}</p>
+                <p>${path}</p>
+              </td>
+              <td class="py-2 px-4 border">
+                <p>${info.status}</p>
+                ${info.progress ? `<p>${info.progress}%</p>` : ''}
+              </td>
+              <td class="py-2 px-4 border">${info.size ? `${info.size} bytes` : '-'}</td>
+              <td class="py-2 px-4 border">${info.speed || '-'}</td>
+            `;
+            tableBody.appendChild(row);
+          });
+        })
+        .catch(error => console.error('Error fetching files:', error));
+    }
+
+    // Set up periodic updates
+    document.addEventListener('DOMContentLoaded', () => {
+      updateSyncStatus();
+      updateFilesList();
+      setInterval(updateSyncStatus, 5000); // Update sync status every 5 seconds
+      setInterval(updateFilesList, 5000); // Update files list every 10 seconds
+
+      // Start sync button functionality
+      document.getElementById('start-sync').addEventListener('click', () => {
+        fetch('start-sync', { method: 'POST' })
+          .then(() => console.log('Sync started'))
+          .catch(error => console.error('Error starting sync:', error));
+      });
+    });
+  </script>
 </body>
 </html>
