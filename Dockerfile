@@ -3,11 +3,14 @@ FROM node:22-alpine
 # Set the working directory
 WORKDIR /app
 
-ARG USER=username
-ARG GROUP=groupname
 ARG UID=1000
 ARG GID=1000
 ARG USER=nodeuser
+ARG GROUP=nodegroup
+
+ENV HOME=/home/$USER
+
+# Add group and user only if they don't exist
 RUN getent group $GID || addgroup -g $GID $GROUP && \
     id -u $UID || adduser -D -u $UID -G $GROUP -h $HOME $USER
 
