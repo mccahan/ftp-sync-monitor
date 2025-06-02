@@ -25,4 +25,9 @@ EXPOSE 3000
 ENV NODE_ENV=production
 
 # Entrypoint that allows dynamic UID/GID usage via su-exec
-ENTRYPOINT ["/bin/sh", "-c", "exec su-exec ${UID:-1000}:${GID:-1000} node index.js"]
+ENTRYPOINT ["/bin/sh", "-c", "\
+  if [ $(id -u) -eq 0 ]; then \
+    exec su-exec ${UID:-1000}:${GID:-1000} node index.js; \
+  else \
+    exec node index.js; \
+  fi"]
