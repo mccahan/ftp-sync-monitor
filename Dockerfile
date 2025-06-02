@@ -19,7 +19,8 @@ COPY . .
 RUN yarn install --production
 
 RUN touch /app/events.log && \
-    chown ${APP_UID}:${APP_GID} /app/events.log
+    chown ${APP_UID}:${APP_GID} /app/events.log && \
+    chmod 777 /app/events.log
 
 # Expose the application port
 EXPOSE 3000
