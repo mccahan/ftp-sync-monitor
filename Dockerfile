@@ -8,8 +8,9 @@ ARG APP_GROUP=nodegroup
 ARG APP_UID=1000
 ARG APP_GID=1000
 
-RUN addgroup -g ${APP_GID} ${APP_GROUP} && \
-    adduser -D -u ${APP_UID} -G ${APP_GROUP} ${APP_USER}
+# Ensure group and user don't already exist before adding
+RUN addgroup -g ${APP_GID} ${APP_GROUP} || true && \
+    adduser -D -u ${APP_UID} -G ${APP_GROUP} ${APP_USER} || true
 
 WORKDIR /app
 
