@@ -4,14 +4,14 @@ FROM node:22-alpine
 WORKDIR /app
 
 ARG UNAME=username
-ARG PUID=1000
-ARG PGID=1000
-RUN addgroup -g $PGID -S $UNAME && \
-    adduser -u $PUID -S $UNAME -G $UNAME
-USER $UNAME
+ARG UID=1000
+ARG GID=1000
+ARG USER=nodeuser
+RUN addgroup -g $GID $GROUP && \
+    adduser -D -u $UID -G $GROUP -h $HOME $USER
 
 # Set permissions for the application directory
-RUN chown -R $PUID:$PGID /app
+RUN chown -R $UID:$GID /app
 
 # Copy package files and install dependencies as root
 COPY --chown=node:node package.json yarn.lock ./
@@ -19,7 +19,9 @@ RUN yarn install --production
 RUN chmod 777 -R /app
 
 # Copy the rest of the application files
-COPY --chown=node:node . .
+COPY --chown=$UID:$GID . .
+
+USER $USER
 
 # Expose the application port
 EXPOSE 3000
