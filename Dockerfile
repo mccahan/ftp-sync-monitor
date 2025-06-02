@@ -3,11 +3,11 @@ FROM node:22-alpine
 # Set the working directory
 WORKDIR /app
 
-ARG UNAME=testuser
-ARG UID=1000
-ARG GID=1000
-RUN groupadd -g $PGID -o $UNAME
-RUN useradd -m -u $PUID -g $PGID -o -s /bin/bash $UNAME
+ARG UNAME=username
+ARG PUID=1000
+ARG PGID=1000
+RUN addgroup -g $PGID -S $UNAME && \
+    adduser -u $PUID -S $UNAME -G $UNAME
 USER $UNAME
 
 # Set permissions for the application directory
