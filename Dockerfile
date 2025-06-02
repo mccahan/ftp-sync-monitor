@@ -17,8 +17,6 @@ WORKDIR /app
 COPY . .
 RUN yarn install --production
 
-USER $USER
-
 # Expose the application port
 EXPOSE 3000
 
