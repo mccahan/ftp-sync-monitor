@@ -3,12 +3,13 @@ FROM node:22-alpine
 # Set the working directory
 WORKDIR /app
 
-ARG UNAME=username
+ARG USER=username
+arg GROUP=groupname
 ARG UID=1000
 ARG GID=1000
 ARG USER=nodeuser
-RUN addgroup -g $GID $GROUP && \
-    adduser -D -u $UID -G $GROUP -h $HOME $USER
+RUN addgroup -g $GID $GROUP
+RUN adduser -D -u $UID -G $GROUP -h $HOME $USER
 
 # Set permissions for the application directory
 RUN chown -R $UID:$GID /app
