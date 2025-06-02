@@ -28,7 +28,7 @@ EXPOSE 3000
 ENV NODE_ENV=production
 
 ENTRYPOINT ["/bin/sh", "-c", "\
-  ls -al /app/events.log \
+  ls -al /app/events.log && \
   if [ $(id -u) -eq 0 ]; then \
     exec su-exec ${UID:-1000}:${GID:-1000} node index.js; \
   else \
