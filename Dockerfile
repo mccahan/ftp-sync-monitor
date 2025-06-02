@@ -3,16 +3,20 @@ FROM node:22-alpine
 # Set the working directory
 WORKDIR /app
 
+ARG UNAME=testuser
+ARG UID=1000
+ARG GID=1000
+RUN groupadd -g $PGID -o $UNAME
+RUN useradd -m -u $PUID -g $PGID -o -s /bin/bash $UNAME
+USER $UNAME
+
 # Set permissions for the application directory
-RUN chown -R 1000:1000 /app
+RUN chown -R $PUID:$PGID /app
 
 # Copy package files and install dependencies as root
 COPY --chown=node:node package.json yarn.lock ./
 RUN yarn install --production
 RUN chmod 777 -R /app
-
-# Switch to the non-root user
-USER 1000
 
 # Copy the rest of the application files
 COPY --chown=node:node . .
