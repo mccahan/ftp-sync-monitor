@@ -18,7 +18,8 @@ WORKDIR /app
 COPY . .
 RUN yarn install --production
 
-RUN touch /app/events.log && chown ${UID:-1000}:${GID:-1000} /app/events.log 
+RUN touch /app/events.log && \
+    chown ${APP_UID}:${APP_GID} /app/events.log
 
 # Expose the application port
 EXPOSE 3000
@@ -27,7 +28,6 @@ EXPOSE 3000
 ENV NODE_ENV=production
 
 ENTRYPOINT ["/bin/sh", "-c", "\
-  chown ${UID:-1000}:${GID:-1000} /app/events.log && \
   if [ $(id -u) -eq 0 ]; then \
     exec su-exec ${UID:-1000}:${GID:-1000} node index.js; \
   else \
