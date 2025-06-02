@@ -22,6 +22,10 @@ RUN touch /app/events.log && \
     chown ${APP_UID}:${APP_GID} /app/events.log && \
     chmod 777 /app/events.log
 
+RUN touch /app/fileStatus.json && \
+    chown ${APP_UID}:${APP_GID} /app/fileStatus.json && \
+    chmod 777 /app/fileStatus.json
+
 # Expose the application port
 EXPOSE 3000
 
