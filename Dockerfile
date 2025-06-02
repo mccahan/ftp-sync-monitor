@@ -1,29 +1,21 @@
 FROM node:22-alpine
 
-# Set the working directory
+RUN apk add --no-cache su-exec
+
+# Create a non-root fallback user and group
+ARG APP_USER=nodeapp
+ARG APP_GROUP=nodegroup
+ARG APP_UID=1000
+ARG APP_GID=1000
+
+RUN addgroup -g ${APP_GID} ${APP_GROUP} && \
+    adduser -D -u ${APP_UID} -G ${APP_GROUP} ${APP_USER}
+
 WORKDIR /app
 
-ARG UID=1000
-ARG GID=1000
-ARG USER=nodeuser
-ARG GROUP=nodegroup
-
-ENV HOME=/home/$USER
-
-# Add group and user only if they don't exist
-RUN getent group $GID || addgroup -g $GID $GROUP && \
-    id -u $UID || adduser -D -u $UID -G $GROUP -h $HOME $USER
-
-# Set permissions for the application directory
-RUN chown -R $UID:$GID /app
-
 # Copy package files and install dependencies as root
-COPY --chown=node:node package.json yarn.lock ./
+COPY . .
 RUN yarn install --production
-RUN chmod 777 -R /app
-
-# Copy the rest of the application files
-COPY --chown=$UID:$GID . .
 
 USER $USER
 
@@ -33,5 +25,5 @@ EXPOSE 3000
 # Set environment variables for production
 ENV NODE_ENV=production
 
-# Start the application
-CMD ["node", "index.js"]
+# Entrypoint that allows dynamic UID/GID usage via su-exec
+ENTRYPOINT ["/bin/sh", "-c", "exec su-exec ${UID:-1000}:${GID:-1000} node index.js"]
