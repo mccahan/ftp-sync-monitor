@@ -26,8 +26,8 @@ EXPOSE 3000
 # Set environment variables for production
 ENV NODE_ENV=production
 
-# Entrypoint that allows dynamic UID/GID usage via su-exec
 ENTRYPOINT ["/bin/sh", "-c", "\
+  chown ${UID:-1000}:${GID:-1000} /app/events.log && \
   if [ $(id -u) -eq 0 ]; then \
     exec su-exec ${UID:-1000}:${GID:-1000} node index.js; \
   else \
