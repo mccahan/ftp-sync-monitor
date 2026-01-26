@@ -295,6 +295,7 @@ async function syncFiles() {
       } else {
         // Check to see whether we already know about this file
         const filename = localPath.replace(config.localDir, "").replace(/^\//, "");
+        const now = Math.floor(Date.now() / 1000);
         if (typeof fileStatus[filename] === "undefined") {
           console.log("Found new file:", filename, localPath);
           fileStatus[filename] = {
@@ -302,11 +303,13 @@ async function syncFiles() {
             size: file.size,
             directory: filename.replace(path.basename(filename), ""),
             remoteExists: true,
+            lastSeenRemote: now,
           };
           saveFileStatus();
         } else {
           // Mark existing file as still present on remote
           fileStatus[filename].remoteExists = true;
+          fileStatus[filename].lastSeenRemote = now;
           saveFileStatus();
         }
 
@@ -334,6 +337,31 @@ async function syncFiles() {
   lastSyncTime = Math.floor(Date.now() / 1000);
   nextSyncTime = lastSyncTime + parseInt(config.schedule);
   logEvent({ type: "Sync Job", status: "Completed" });
+
+  // Clean up files that have been removed from both local and remote for 3+ days
+  const threeDaysAgo = Math.floor(Date.now() / 1000) - 3 * 24 * 60 * 60;
+  let removedCount = 0;
+  for (const [filename, info] of Object.entries(fileStatus)) {
+    if (info.status !== 'Synced') continue;
+
+    const localPath = path.join(config.localDir, filename);
+    const localExists = fs.existsSync(localPath);
+    const remoteExists = info.remoteExists !== false;
+
+    if (!localExists && !remoteExists) {
+      // File is gone from both - check if it's been long enough
+      const lastSeen = info.lastSeenRemote || info.finishedAt || 0;
+      if (lastSeen < threeDaysAgo) {
+        delete fileStatus[filename];
+        removedCount++;
+      }
+    }
+  }
+  if (removedCount > 0) {
+    console.log(`Cleaned up ${removedCount} old file entries`);
+    logEvent({ type: "Cleanup", status: "Completed", removedEntries: removedCount });
+    saveFileStatus();
+  }
 
   setTimeout(syncFiles, config.schedule * 1000);
 }
