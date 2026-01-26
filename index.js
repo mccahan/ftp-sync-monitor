@@ -119,6 +119,15 @@ async function syncFiles() {
   console.log("Sync job started at:", new Date().toISOString());
   isSyncing = true;
   logEvent({ type: "Sync Job", status: "Started" });
+
+  // Mark all synced files as potentially removed from remote
+  for (const [filename, info] of Object.entries(fileStatus)) {
+    if (info.status === 'Synced') {
+      fileStatus[filename].remoteExists = false;
+    }
+  }
+  saveFileStatus();
+
   const client =
     config.protocol === "ftp" ? await connectFTP() : await connectSFTP();
   if (!client) {
@@ -292,7 +301,12 @@ async function syncFiles() {
             status: "Pending",
             size: file.size,
             directory: filename.replace(path.basename(filename), ""),
+            remoteExists: true,
           };
+          saveFileStatus();
+        } else {
+          // Mark existing file as still present on remote
+          fileStatus[filename].remoteExists = true;
           saveFileStatus();
         }
 
@@ -330,9 +344,17 @@ app.use(PREFIX, express.static(path.join(__dirname, "public")));
 app.get(PREFIX + "/files", (req, res) => {
   const daysAgo = Math.floor(Date.now() / 1000) - 3 * 24 * 60 * 60;
   const files = Object.fromEntries(
-    Object.entries(fileStatus).filter(
-      ([, value]) => !value.finishedAt || value.finishedAt >= daysAgo
-    )
+    Object.entries(fileStatus)
+      .filter(([, value]) => !value.finishedAt || value.finishedAt >= daysAgo)
+      .map(([filename, value]) => {
+        // Check if local file exists for synced files
+        if (value.status === 'Synced') {
+          const localPath = path.join(config.localDir, filename);
+          const localExists = fs.existsSync(localPath);
+          return [filename, { ...value, localExists, remoteExists: value.remoteExists !== false }];
+        }
+        return [filename, value];
+      })
   );
   res.json(files);
 });

@@ -297,14 +297,28 @@
     }
 
     function createFinishedRow(path, info) {
+      const localMissing = info.localExists === false;
+      const remoteMissing = info.remoteExists === false;
+
+      let badges = [];
+      if (localMissing) {
+        badges.push('<span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-sm" title="File removed from local storage">Local removed</span>');
+      }
+      if (remoteMissing) {
+        badges.push('<span class="px-2 py-1 bg-orange-500/20 text-orange-400 rounded text-sm" title="File no longer on remote server">Remote removed</span>');
+      }
+      if (!localMissing && !remoteMissing) {
+        badges.push('<span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-sm">Synced</span>');
+      }
+
       return `
-        <tr class="hover:bg-slate-700/50 transition-colors">
+        <tr class="hover:bg-slate-700/50 transition-colors ${localMissing || remoteMissing ? 'opacity-75' : ''}">
           <td class="py-3 px-4">
             <p class="text-xs text-slate-500 truncate">${info.directory || ''}</p>
-            <p class="text-slate-200 truncate max-w-md" title="${path}">${path.split('/').pop()}</p>
+            <p class="text-slate-200 truncate max-w-md ${localMissing ? 'line-through text-slate-400' : ''}" title="${path}">${path.split('/').pop()}</p>
           </td>
           <td class="py-3 px-4">
-            <span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-sm">Synced</span>
+            <div class="flex flex-wrap gap-1">${badges.join('')}</div>
           </td>
           <td class="py-3 px-4 text-right text-slate-300">${formatBytes(info.size)}</td>
           <td class="py-3 px-4 text-right text-slate-400">${formatSpeed(info.speed)}</td>
