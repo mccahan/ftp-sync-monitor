@@ -305,6 +305,10 @@ async function syncFiles() {
   }
 
   await client.cd(config.remoteDir);
+  // First pass: discover all files and mark as Pending
+  await traverseDir(".", config.localDir, false);
+  // Second pass: download pending files
+  await client.cd(config.remoteDir);
   await traverseDir(".", config.localDir, true);
   if (config.protocol === "ftp") client.close();
   else if (config.protocol === "ftp") client.close();
