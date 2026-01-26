@@ -154,9 +154,39 @@ The dashboard displays:
 
 A compact status widget is available for embedding in [Homepage](https://gethomepage.dev/) or other dashboards.
 
-### Homepage Configuration
+### Docker Compose with Homepage Labels
 
-Add to your Homepage `services.yaml`:
+```yaml
+version: '3'
+services:
+  ftp-sync:
+    image: mccahan/ftp-sync-monitor:latest
+    container_name: ftp-sync-monitor
+    ports:
+      - "3000:3000"
+    environment:
+      - PROTOCOL=sftp
+      - HOST=ftp.example.com
+      - PORT=22
+      - USERNAME=myuser
+      - PASSWORD=mypassword
+      - REMOTE_DIR=/files
+      - FREQUENCY=300
+    volumes:
+      - ./downloads:/app/localSync
+      - ./fileStatus.json:/app/fileStatus.json
+    labels:
+      - homepage.group=Downloads
+      - homepage.name=FTP Sync
+      - homepage.icon=mdi-sync
+      - homepage.href=http://ftp-sync-monitor:3000/
+      - homepage.description=File synchronization
+      - homepage.widget.type=iframe
+      - homepage.widget.src=http://ftp-sync-monitor:3000/widget.html
+      - homepage.widget.classes=h-28
+```
+
+### Manual services.yaml Configuration
 
 ```yaml
 - FTP Sync:
@@ -166,7 +196,7 @@ Add to your Homepage `services.yaml`:
       type: iframe
       name: FTP Sync Status
       src: http://your-server:3000/widget.html
-      classes: h-28 # Adjust height as needed
+      classes: h-28
 ```
 
 ### Widget Features
