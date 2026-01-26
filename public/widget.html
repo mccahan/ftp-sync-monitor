@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FTP Sync Status</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: transparent;
+      color: #e2e8f0;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    .widget {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .label {
+      color: #94a3b8;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .value {
+      font-weight: 500;
+      font-size: 13px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-idle {
+      background: rgba(100, 116, 139, 0.3);
+      color: #cbd5e1;
+    }
+    .status-syncing {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .dot.pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .stats {
+      display: flex;
+      gap: 16px;
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .stat-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    .stat-value.highlight {
+      color: #4ade80;
+    }
+    .stat-label {
+      font-size: 10px;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+    .divider {
+      height: 1px;
+      background: rgba(148, 163, 184, 0.1);
+      margin: 4px 0;
+    }
+    .progress-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+    }
+    .progress-bar {
+      flex: 1;
+      height: 4px;
+      background: rgba(100, 116, 139, 0.3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #4ade80;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+    .progress-text {
+      color: #94a3b8;
+      min-width: 32px;
+      text-align: right;
+    }
+    .filename {
+      color: #cbd5e1;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="widget">
+    <div class="row">
+      <span id="status-badge" class="status-badge status-idle">
+        <span class="dot"></span>
+        <span id="status-text">Idle</span>
+      </span>
+      <span id="next-sync" class="value" style="color: #94a3b8; font-size: 12px;">-</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <span id="active-count" class="stat-value">0</span>
+        <span class="stat-label">Active</span>
+      </div>
+      <div class="stat">
+        <span id="pending-count" class="stat-value">0</span>
+        <span class="stat-label">Pending</span>
+      </div>
+      <div class="stat">
+        <span id="synced-count" class="stat-value">0</span>
+        <span class="stat-label">Synced</span>
+      </div>
+    </div>
+
+    <div id="current-download" style="display: none;">
+      <div class="divider"></div>
+      <div class="progress-item">
+        <span id="dl-filename" class="filename">-</span>
+        <div class="progress-bar">
+          <div id="dl-progress" class="progress-fill" style="width: 0%"></div>
+        </div>
+        <span id="dl-percent" class="progress-text">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let nextSyncTime = null;
+
+    function formatCountdown(seconds) {
+      if (seconds <= 0) return 'now';
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      if (mins > 0) return `${mins}m ${secs}s`;
+      return `${secs}s`;
+    }
+
+    function updateCountdown() {
+      const el = document.getElementById('next-sync');
+      if (!nextSyncTime) return;
+      const now = Math.floor(Date.now() / 1000);
+      const remaining = nextSyncTime - now;
+      if (remaining <= 0) {
+        el.textContent = 'starting...';
+      } else {
+        el.textContent = formatCountdown(remaining);
+      }
+    }
+
+    function update() {
+      // Fetch sync status
+      fetch('sync-status')
+        .then(r => r.json())
+        .then(data => {
+          const badge = document.getElementById('status-badge');
+          const statusText = document.getElementById('status-text');
+          const dot = badge.querySelector('.dot');
+          const nextSyncEl = document.getElementById('next-sync');
+
+          nextSyncTime = data.nextSyncTime;
+
+          if (data.status === 'running') {
+            badge.className = 'status-badge status-syncing';
+            statusText.textContent = 'Syncing';
+            dot.classList.add('pulse');
+            nextSyncEl.textContent = 'in progress';
+          } else {
+            badge.className = 'status-badge status-idle';
+            statusText.textContent = 'Idle';
+            dot.classList.remove('pulse');
+            updateCountdown();
+          }
+        });
+
+      // Fetch files
+      fetch('files')
+        .then(r => r.json())
+        .then(data => {
+          const entries = Object.entries(data);
+          const active = entries.filter(([, i]) => i.status === 'Downloading');
+          const pending = entries.filter(([, i]) => i.status === 'Pending');
+          const synced = entries.filter(([, i]) => i.status === 'Synced');
+
+          document.getElementById('active-count').textContent = active.length;
+          document.getElementById('active-count').className = active.length > 0 ? 'stat-value highlight' : 'stat-value';
+          document.getElementById('pending-count').textContent = pending.length;
+          document.getElementById('synced-count').textContent = synced.length;
+
+          const dlSection = document.getElementById('current-download');
+          if (active.length > 0) {
+            const [filename, info] = active[0];
+            const progress = parseFloat(info.progress) || 0;
+            dlSection.style.display = 'block';
+            document.getElementById('dl-filename').textContent = filename.split('/').pop();
+            document.getElementById('dl-filename').title = filename;
+            document.getElementById('dl-progress').style.width = progress + '%';
+            document.getElementById('dl-percent').textContent = progress.toFixed(0) + '%';
+          } else {
+            dlSection.style.display = 'none';
+          }
+        });
+    }
+
+    update();
+    setInterval(update, 3000);
+    setInterval(updateCountdown, 1000);
+  </script>
+</body>
+</html>

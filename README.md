@@ -144,10 +144,38 @@ The dashboard displays:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Web dashboard |
+| `/widget.html` | GET | Compact widget for embedding |
 | `/files` | GET | File status list (JSON) |
 | `/events` | GET | Event log (JSON) |
 | `/sync-status` | GET | Current sync status, timing info |
 | `/start-sync` | POST | Trigger manual sync |
+
+## Homepage Widget
+
+A compact status widget is available for embedding in [Homepage](https://gethomepage.dev/) or other dashboards.
+
+### Homepage Configuration
+
+Add to your Homepage `services.yaml`:
+
+```yaml
+- FTP Sync:
+    icon: mdi-sync
+    href: http://your-server:3000/
+    widget:
+      type: iframe
+      name: FTP Sync Status
+      src: http://your-server:3000/widget.html
+      classes: h-28 # Adjust height as needed
+```
+
+### Widget Features
+
+- Sync status indicator (Idle/Syncing)
+- Countdown to next sync
+- Active, pending, and synced file counts
+- Current download progress bar (when downloading)
+- Transparent background (adapts to Homepage theme)
 
 ## Data Files
 
