@@ -60,49 +60,27 @@
       </div>
     </div>
 
-    <!-- Active Downloads Section -->
-    <div id="active-section" class="mb-8">
+    <!-- Downloads Section (Active + Pending) -->
+    <div id="downloads-section" class="mb-8">
       <div class="flex items-center gap-2 mb-4">
-        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-        <h2 class="text-xl font-semibold text-white">Active Downloads</h2>
-        <span id="active-count" class="px-2 py-0.5 bg-slate-700 rounded-full text-sm text-slate-300">0</span>
+        <div id="downloads-indicator" class="w-2 h-2 rounded-full bg-slate-500"></div>
+        <h2 class="text-xl font-semibold text-white">Downloads</h2>
+        <span id="downloads-count" class="px-2 py-0.5 bg-slate-700 rounded-full text-sm text-slate-300">0</span>
       </div>
       <div class="bg-slate-800 rounded-xl shadow-lg overflow-hidden border border-slate-700">
         <table class="min-w-full">
           <thead>
             <tr class="bg-slate-700/50">
               <th class="py-3 px-4 text-left text-sm font-semibold text-slate-300">File</th>
-              <th class="py-3 px-4 text-left text-sm font-semibold text-slate-300 w-48">Progress</th>
+              <th class="py-3 px-4 text-left text-sm font-semibold text-slate-300 w-48">Status</th>
               <th class="py-3 px-4 text-right text-sm font-semibold text-slate-300 w-32">Size</th>
               <th class="py-3 px-4 text-right text-sm font-semibold text-slate-300 w-28">Speed</th>
             </tr>
           </thead>
-          <tbody id="active-table-body" class="divide-y divide-slate-700">
-            <tr id="no-active-row">
-              <td colspan="4" class="py-8 text-center text-slate-500">No active downloads</td>
+          <tbody id="downloads-table-body" class="divide-y divide-slate-700">
+            <tr id="no-downloads-row">
+              <td colspan="4" class="py-8 text-center text-slate-500">No pending downloads</td>
             </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Pending Files Section -->
-    <div id="pending-section" class="mb-8 hidden">
-      <div class="flex items-center gap-2 mb-4">
-        <div class="w-2 h-2 rounded-full bg-yellow-500"></div>
-        <h2 class="text-xl font-semibold text-white">Pending</h2>
-        <span id="pending-count" class="px-2 py-0.5 bg-slate-700 rounded-full text-sm text-slate-300">0</span>
-      </div>
-      <div class="bg-slate-800 rounded-xl shadow-lg overflow-hidden border border-slate-700">
-        <table class="min-w-full">
-          <thead>
-            <tr class="bg-slate-700/50">
-              <th class="py-3 px-4 text-left text-sm font-semibold text-slate-300">File</th>
-              <th class="py-3 px-4 text-left text-sm font-semibold text-slate-300 w-32">Status</th>
-              <th class="py-3 px-4 text-right text-sm font-semibold text-slate-300 w-32">Size</th>
-            </tr>
-          </thead>
-          <tbody id="pending-table-body" class="divide-y divide-slate-700">
           </tbody>
         </table>
       </div>
@@ -161,6 +139,21 @@
       return `${Math.floor(diff / 86400)}d ago`;
     }
 
+    function formatSpeed(speedStr) {
+      if (!speedStr) return '-';
+      // Parse the KB/s value from backend (e.g., "1234.56 KB/s")
+      const match = speedStr.match(/([\d.]+)\s*KB\/s/i);
+      if (!match) return speedStr; // Return as-is if not in expected format
+
+      let kbps = parseFloat(match[1]);
+      if (isNaN(kbps)) return speedStr;
+
+      if (kbps >= 1024) {
+        return `${(kbps / 1024).toFixed(1)} MB/s`;
+      }
+      return `${kbps.toFixed(0)} KB/s`;
+    }
+
     function updateSyncStatus() {
       fetch('sync-status')
         .then(response => response.json())
@@ -194,7 +187,7 @@
         });
     }
 
-    function createActiveRow(path, info) {
+    function createDownloadingRow(path, info) {
       const progress = parseFloat(info.progress) || 0;
       return `
         <tr class="hover:bg-slate-700/50 transition-colors">
@@ -227,6 +220,7 @@
             <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-sm">Pending</span>
           </td>
           <td class="py-3 px-4 text-right text-slate-300">${formatBytes(info.size)}</td>
+          <td class="py-3 px-4 text-right text-slate-400">-</td>
         </tr>
       `;
     }
@@ -242,7 +236,7 @@
             <span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-sm">Synced</span>
           </td>
           <td class="py-3 px-4 text-right text-slate-300">${formatBytes(info.size)}</td>
-          <td class="py-3 px-4 text-right text-slate-400">${info.speed || '-'}</td>
+          <td class="py-3 px-4 text-right text-slate-400">${formatSpeed(info.speed)}</td>
           <td class="py-3 px-4 text-right text-slate-500">${formatTimeAgo(info.finishedAt)}</td>
         </tr>
       `;
@@ -255,30 +249,35 @@
           const entries = Object.entries(data);
 
           // Separate into categories
-          const active = entries.filter(([, info]) => info.status === 'Downloading');
+          const downloading = entries.filter(([, info]) => info.status === 'Downloading');
           const pending = entries.filter(([, info]) => info.status === 'Pending');
           const finished = entries
             .filter(([, info]) => info.status === 'Synced')
             .sort((a, b) => (b[1].finishedAt || 0) - (a[1].finishedAt || 0));
 
-          // Update active downloads
-          const activeBody = document.getElementById('active-table-body');
-          document.getElementById('active-count').textContent = active.length;
-          if (active.length === 0) {
-            activeBody.innerHTML = '<tr id="no-active-row"><td colspan="4" class="py-8 text-center text-slate-500">No active downloads</td></tr>';
+          // Combined downloads (active + pending)
+          const downloads = [...downloading, ...pending];
+          const downloadsBody = document.getElementById('downloads-table-body');
+          const downloadsIndicator = document.getElementById('downloads-indicator');
+          document.getElementById('downloads-count').textContent = downloads.length;
+
+          // Update indicator based on state
+          if (downloading.length > 0) {
+            downloadsIndicator.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
+          } else if (pending.length > 0) {
+            downloadsIndicator.className = 'w-2 h-2 rounded-full bg-yellow-500';
           } else {
-            activeBody.innerHTML = active.map(([path, info]) => createActiveRow(path, info)).join('');
+            downloadsIndicator.className = 'w-2 h-2 rounded-full bg-slate-500';
           }
 
-          // Update pending files
-          const pendingSection = document.getElementById('pending-section');
-          const pendingBody = document.getElementById('pending-table-body');
-          document.getElementById('pending-count').textContent = pending.length;
-          if (pending.length === 0) {
-            pendingSection.classList.add('hidden');
+          if (downloads.length === 0) {
+            downloadsBody.innerHTML = '<tr id="no-downloads-row"><td colspan="4" class="py-8 text-center text-slate-500">No pending downloads</td></tr>';
           } else {
-            pendingSection.classList.remove('hidden');
-            pendingBody.innerHTML = pending.map(([path, info]) => createPendingRow(path, info)).join('');
+            const rows = [
+              ...downloading.map(([path, info]) => createDownloadingRow(path, info)),
+              ...pending.map(([path, info]) => createPendingRow(path, info))
+            ];
+            downloadsBody.innerHTML = rows.join('');
           }
 
           // Update finished downloads
