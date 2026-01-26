@@ -60,6 +60,18 @@
       </div>
     </div>
 
+    <!-- Sync Timing Info -->
+    <div class="mb-8 flex gap-6">
+      <div class="bg-slate-800 rounded-xl px-5 py-4 border border-slate-700 flex-1">
+        <p class="text-slate-400 text-sm mb-1">Last Sync</p>
+        <p id="last-sync" class="text-white text-lg font-medium">-</p>
+      </div>
+      <div class="bg-slate-800 rounded-xl px-5 py-4 border border-slate-700 flex-1">
+        <p class="text-slate-400 text-sm mb-1">Next Sync</p>
+        <p id="next-sync" class="text-white text-lg font-medium">-</p>
+      </div>
+    </div>
+
     <!-- Downloads Section (Active + Pending) -->
     <div id="downloads-section" class="mb-8">
       <div class="flex items-center gap-2 mb-4">
@@ -116,6 +128,46 @@
 
   <script>
     let isSyncing = false;
+    let nextSyncTime = null;
+
+    function formatDateTime(timestamp) {
+      if (!timestamp) return '-';
+      const date = new Date(timestamp * 1000);
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (isToday) {
+        return `Today at ${time}`;
+      }
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ` at ${time}`;
+    }
+
+    function formatCountdown(seconds) {
+      if (seconds <= 0) return 'Now';
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      if (mins > 0) {
+        return `${mins}m ${secs}s`;
+      }
+      return `${secs}s`;
+    }
+
+    function updateCountdown() {
+      const nextSyncEl = document.getElementById('next-sync');
+      if (!nextSyncTime || isSyncing) {
+        if (isSyncing) {
+          nextSyncEl.textContent = 'In progress...';
+        }
+        return;
+      }
+      const now = Math.floor(Date.now() / 1000);
+      const remaining = nextSyncTime - now;
+      if (remaining <= 0) {
+        nextSyncEl.textContent = 'Starting...';
+      } else {
+        nextSyncEl.textContent = formatCountdown(remaining);
+      }
+    }
 
     function formatBytes(bytes) {
       if (!bytes || bytes === 0) return '-';
@@ -162,8 +214,27 @@
           const btn = document.getElementById('start-sync');
           const btnText = document.getElementById('sync-btn-text');
           const syncIcon = document.getElementById('sync-icon');
+          const lastSyncEl = document.getElementById('last-sync');
+          const nextSyncEl = document.getElementById('next-sync');
 
           isSyncing = data.status === 'running';
+          nextSyncTime = data.nextSyncTime;
+
+          // Update last sync time
+          if (data.lastSyncTime) {
+            lastSyncEl.textContent = formatDateTime(data.lastSyncTime);
+          } else {
+            lastSyncEl.textContent = 'Never';
+          }
+
+          // Update next sync countdown
+          if (isSyncing) {
+            nextSyncEl.textContent = 'In progress...';
+          } else if (data.nextSyncTime) {
+            updateCountdown();
+          } else {
+            nextSyncEl.textContent = '-';
+          }
 
           if (isSyncing) {
             statusEl.textContent = 'Syncing';
@@ -297,6 +368,7 @@
       updateFilesList();
       setInterval(updateSyncStatus, 2000);
       setInterval(updateFilesList, 3000);
+      setInterval(updateCountdown, 1000);
 
       document.getElementById('start-sync').addEventListener('click', () => {
         if (isSyncing) return;

@@ -14,6 +14,8 @@ const __dirname = dirname(__filename);
 const fileStatusPath = path.join(__dirname, "fileStatus.json");
 
 let isSyncing = false;
+let lastSyncTime = null;
+let nextSyncTime = null;
 
 // Load configuration from local file if available
 let localConfig = {};
@@ -315,6 +317,8 @@ async function syncFiles() {
   else await client.end();
   console.log("Sync job completed at:", new Date().toISOString());
   isSyncing = false;
+  lastSyncTime = Math.floor(Date.now() / 1000);
+  nextSyncTime = lastSyncTime + parseInt(config.schedule);
   logEvent({ type: "Sync Job", status: "Completed" });
 
   setTimeout(syncFiles, config.schedule * 1000);
@@ -352,7 +356,12 @@ app.post(PREFIX + "/start-sync", async (_req, res) => {
 });
 
 app.get(PREFIX + "/sync-status", (_req, res) => {
-  res.json({ status: isSyncing ? 'running' : 'idle' });
+  res.json({
+    status: isSyncing ? 'running' : 'idle',
+    lastSyncTime,
+    nextSyncTime,
+    scheduleSeconds: parseInt(config.schedule)
+  });
 });
 
 // Start server
