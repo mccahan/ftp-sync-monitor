@@ -147,10 +147,14 @@ async function syncFiles() {
           status: "Already Downloaded",
           file: remotePath,
         });
+        // Preserve existing speed and finishedAt if available
+        const existing = fileStatus[filename] || {};
         fileStatus[filename] = {
           status: "Synced",
           size,
           directory: filename.replace(path.basename(filename), ""),
+          speed: existing.speed,
+          finishedAt: existing.finishedAt || Math.ceil(Date.now() / 1000),
         };
         saveFileStatus();
         return;
