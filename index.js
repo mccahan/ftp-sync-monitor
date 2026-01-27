@@ -120,13 +120,8 @@ async function syncFiles() {
   isSyncing = true;
   logEvent({ type: "Sync Job", status: "Started" });
 
-  // Mark all synced files as potentially removed from remote
-  for (const [filename, info] of Object.entries(fileStatus)) {
-    if (info.status === 'Synced') {
-      fileStatus[filename].remoteExists = false;
-    }
-  }
-  saveFileStatus();
+  // Track files seen during this sync cycle
+  const filesSeenThisSync = new Set();
 
   const client =
     config.protocol === "ftp" ? await connectFTP() : await connectSFTP();
@@ -296,6 +291,7 @@ async function syncFiles() {
         // Check to see whether we already know about this file
         const filename = localPath.replace(config.localDir, "").replace(/^\//, "");
         const now = Math.floor(Date.now() / 1000);
+        filesSeenThisSync.add(filename);
         if (typeof fileStatus[filename] === "undefined") {
           console.log("Found new file:", filename, localPath);
           fileStatus[filename] = {
@@ -326,6 +322,15 @@ async function syncFiles() {
   await client.cd(config.remoteDir);
   // First pass: discover all files and mark as Pending
   await traverseDir(".", config.localDir, false);
+
+  // Mark files not seen during this sync as removed from remote
+  for (const [filename, info] of Object.entries(fileStatus)) {
+    if (info.status === 'Synced' && !filesSeenThisSync.has(filename)) {
+      fileStatus[filename].remoteExists = false;
+    }
+  }
+  saveFileStatus();
+
   // Second pass: download pending files
   await client.cd(config.remoteDir);
   await traverseDir(".", config.localDir, true);
