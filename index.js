@@ -41,6 +41,13 @@ const config = {
   schedule: process.env.FREQUENCY || localConfig.frequency || 300,
 };
 
+// UI Configuration
+const uiConfig = {
+  // Hide files under 10MB from the "Recently Finished" list in the UI
+  ignoreSmallFiles: process.env.UI_IGNORE_SMALL_FILES === "true" || localConfig.uiIgnoreSmallFiles === true,
+  smallFileThreshold: 10 * 1024 * 1024, // 10MB in bytes
+};
+
 let fileStatus = {};
 // Load fileStatus from disk if it exists
 if (fs.existsSync(fileStatusPath)) {
@@ -403,6 +410,13 @@ app.get(PREFIX + "/files", (req, res) => {
   const files = Object.fromEntries(
     Object.entries(fileStatus)
       .filter(([, value]) => !value.finishedAt || value.finishedAt >= daysAgo)
+      // Filter out small files from UI if option is enabled (still downloaded, just hidden)
+      .filter(([, value]) => {
+        if (uiConfig.ignoreSmallFiles && value.status === 'Synced' && value.size < uiConfig.smallFileThreshold) {
+          return false;
+        }
+        return true;
+      })
       .map(([filename, value]) => {
         // Check if local file exists for synced files
         if (value.status === 'Synced') {
