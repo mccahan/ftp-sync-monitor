@@ -42,6 +42,7 @@ Configuration can be set via `config.json` or environment variables. Environment
 | `localDir` | `LOCAL_DIR` | `./localSync` | Local destination directory |
 | `frequency` | `FREQUENCY` | `300` | Sync interval in seconds |
 | `prefix` | `PREFIX` | `` | URL prefix for web UI |
+| `uiIgnoreSmallFiles` | `UI_IGNORE_SMALL_FILES` | `false` | Hide files under 10MB from the "Recently Finished" UI list (files are still downloaded) |
 
 ### Example config.json
 
