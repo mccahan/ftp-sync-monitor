@@ -32,6 +32,10 @@ EXPOSE 3000
 # Set environment variables for production
 ENV NODE_ENV=production
 
+# Health check - restart if the server becomes unresponsive
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000${PREFIX}/sync-status || exit 1
+
 ENTRYPOINT ["/bin/sh", "-c", "\
   ls -al /app/events.log && \
   if [ $(id -u) -eq 0 ]; then \

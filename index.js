@@ -122,15 +122,18 @@ async function syncFiles() {
 
   // Track files seen during this sync cycle
   const filesSeenThisSync = new Set();
+  let client = null;
 
-  const client =
-    config.protocol === "ftp" ? await connectFTP() : await connectSFTP();
-  if (!client) {
-    console.log("Sync job aborted due to connection failure.");
-    logEvent({ type: "Sync Job", status: "Aborted - Connection Failure" });
-    isSyncing = false;
-    return;
-  }
+  try {
+    client = config.protocol === "ftp" ? await connectFTP() : await connectSFTP();
+    if (!client) {
+      console.log("Sync job aborted due to connection failure.");
+      logEvent({ type: "Sync Job", status: "Aborted - Connection Failure" });
+      isSyncing = false;
+      // Schedule next sync even on connection failure
+      setTimeout(syncFiles, config.schedule * 1000);
+      return;
+    }
 
   async function processFile(remotePath, localPath, size) {
     const filename = localPath.replace(config.localDir, "").replace(/^\//, "");
@@ -334,13 +337,14 @@ async function syncFiles() {
   // Second pass: download pending files
   await client.cd(config.remoteDir);
   await traverseDir(".", config.localDir, true);
-  if (config.protocol === "ftp") client.close();
-  else if (config.protocol === "ftp") client.close();
-  else await client.end();
+  // Close connection
+  try {
+    if (config.protocol === "ftp") client.close();
+    else await client.end();
+  } catch (closeError) {
+    console.error("Error closing connection:", closeError.message);
+  }
   console.log("Sync job completed at:", new Date().toISOString());
-  isSyncing = false;
-  lastSyncTime = Math.floor(Date.now() / 1000);
-  nextSyncTime = lastSyncTime + parseInt(config.schedule);
   logEvent({ type: "Sync Job", status: "Completed" });
 
   // Clean up files that have been removed from both local and remote for 3+ days
@@ -368,6 +372,26 @@ async function syncFiles() {
     saveFileStatus();
   }
 
+  } catch (error) {
+    console.error("Sync job error:", error.message);
+    logEvent({ type: "Sync Job", status: "Error", error: error.message });
+    
+    // Try to close the connection if it exists
+    try {
+      if (client) {
+        if (config.protocol === "ftp") client.close();
+        else await client.end();
+      }
+    } catch (closeError) {
+      console.error("Error closing connection:", closeError.message);
+    }
+  } finally {
+    isSyncing = false;
+    lastSyncTime = Math.floor(Date.now() / 1000);
+    nextSyncTime = lastSyncTime + parseInt(config.schedule);
+  }
+
+  // Always schedule next sync, even after errors
   setTimeout(syncFiles, config.schedule * 1000);
 }
 
