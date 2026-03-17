@@ -295,7 +295,7 @@ async function syncFiles() {
       const localPath = path.join(localDir, file.name);
 
       if (file.type === "d" || file.type === 2) {
-        if (!fs.existsSync(localPath)) fs.mkdirSync(localPath);
+        // Don't create directory yet - only create when we have files to download
         await traverseDir(file.name, localPath, download);
       } else {
         // Check to see whether we already know about this file
@@ -322,6 +322,10 @@ async function syncFiles() {
         // Download it
         if (download) {
           console.log("Processing", file.name);
+          // Create parent directory only when we're about to download a file
+          if (!fs.existsSync(localDir)) {
+            fs.mkdirSync(localDir, { recursive: true });
+          }
           await processFile(file.name, localPath, file.size);
         }
       }
